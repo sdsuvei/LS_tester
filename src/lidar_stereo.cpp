@@ -14,18 +14,20 @@ int main (int argc, char** argv)
 	const char* img2_filename = 0; //right image
 	const char* intrinsic_filename = 0; //intrinsic parameters
 	const char* extrinsic_filename = 0; //extrinsic parameters
-	const char* disparity_filename = 0;
+	const char* disparity_filename1 = 0;
+	const char* disparity_filename2 = 0;
 	const char* experiment_filename_1 = 0;
 	const char* experiment_filename_2 = 0;
 	const char* point_cloud_filename = 0;
 
-	 cv::setNumThreads(0);
+	cv::setNumThreads(0);
 
 	img1_filename = "left.jpg";
 	img2_filename = "right.jpg";
 	intrinsic_filename = "stereo_parameters/int.yml";
 	extrinsic_filename = "stereo_parameters/ent.yml";
-	disparity_filename = "DISP1.png";
+	disparity_filename1 = "DISP1.png";
+	disparity_filename2 = "DISP2.png";
 
 		int iterator=0;
 
@@ -234,7 +236,9 @@ int main (int argc, char** argv)
 		cv::Mat lidar_DISP=cv::Mat::ones(img1.rows, img1.cols, CV_16S);
 
 		//// Begin FLANN search
-		cv::Mat lidar_points = cv::Mat::zeros(2072641, 2, CV_16S);
+		cv::Mat lidar_points_mat = cv::Mat::zeros(2072641, 2, CV_16S);
+		std::vector<cv::Point_<int16_t> > lidar_points;
+		std::vector<int> lidar_point_idx_to_global_idx;
 		cv::Mat stereo_points = cv::Mat::zeros(2072641, 2, CV_16S);
 
 		int c_l = 0;
@@ -244,8 +248,10 @@ int main (int argc, char** argv)
 			for(int v = 0; v < lidar_l.cols; ++v) {
 				if(lidar_l.at<int16_t>(w,v)!=0)
 					{
-						lidar_points.at<int16_t>(c_l,0)=w;
-						lidar_points.at<int16_t>(c_l,1)=v;
+						lidar_points_mat.at<int16_t>(c_l,0)=v;
+						lidar_points_mat.at<int16_t>(c_l,1)=w;
+					lidar_points.push_back(cv::Point_<int16_t>(v,w));//Stupid CV points need (x,y), NOT (row,col)
+					lidar_point_idx_to_global_idx.push_back(c_l);
 						c_l+=1;
 					}
 
@@ -256,8 +262,8 @@ int main (int argc, char** argv)
 				for(int v = 0; v < img1.cols; ++v) {
 				if(img1.at<int16_t>(w,v)!=0) //STEREO.at<int16_t>(w,v)!=0
 					{
-					stereo_points.at<int16_t>(c_s,0)=w; //rows
-					stereo_points.at<int16_t>(c_s,1)=v; //cols
+					stereo_points.at<int16_t>(c_s,0)=v; //cols alias x
+					stereo_points.at<int16_t>(c_s,1)=w; //rows alias y
 					c_s+=1;
 					}
 				}
@@ -266,7 +272,7 @@ int main (int argc, char** argv)
 		//std::cout<<"c_l: "<<c_l<<" c_s: "<<c_s<<endl;
 
 		//// Convert your 2D lidar points to FLANN matrix
-		flann::Matrix<int16_t> lidar_points_flann(lidar_points.ptr<int16_t>(), lidar_points.rows, lidar_points.cols);
+		flann::Matrix<int16_t> lidar_points_flann(reinterpret_cast<int16_t*>(&lidar_points[0]), lidar_points.size(), 2);
 		// Create single k-d tree
 		flann::KDTreeSingleIndex<flann::L1<int16_t> > kdtree_flann(lidar_points_flann);
 		kdtree_flann.buildIndex();
@@ -293,11 +299,11 @@ int main (int argc, char** argv)
 				s_i=stereo_points.row(ot).at<int16_t>(0,0); //row
 				s_j=stereo_points.row(ot).at<int16_t>(0,1); //cols
 
-				l_i=lidar_points.row(indices_flann.at(ot).at(in)).at<int16_t>(0,0);
-				l_j=lidar_points.row(indices_flann.at(ot).at(in)).at<int16_t>(0,1);
+				l_i=lidar_points_mat.row( lidar_point_idx_to_global_idx.at(indices_flann.at(ot).at(in)) ).at<int16_t>(0,0);
+				l_j=lidar_points_mat.row( lidar_point_idx_to_global_idx.at(indices_flann.at(ot).at(in)) ).at<int16_t>(0,1);
 
 				////assign to each pixel in the STEREO left image the disparity of the corresponding nearest point from the LIDAR image
-				lidar_DISP.at<int16_t>(s_i,s_j) = lidar_l.at<int16_t>(l_i,l_j);
+				lidar_DISP.at<int16_t>(s_j,s_i) = lidar_l.at<int16_t>(l_j,l_i);
 
 				/*if(s_i >500 & s_j>500)
 				{
@@ -336,15 +342,105 @@ int main (int argc, char** argv)
 		bm.state->speckleRange = 1;
 		bm.state->disp12MaxDiff = 10; // positive
 		int cn = img1.channels();
-
+		INTERVAL = 30;
 		int64 t_bm = cv::getTickCount();
 		bm(img1, img2, disp);
 		t_bm = cv::getTickCount() - t_F;
 		printf("Time elapsed for BM: %fms\n", t_bm*1000/cv::getTickFrequency());
 
 		disp.convertTo(disp8, CV_16S, 255/(numberOfDisparities*16.));
-		if(disparity_filename)
-			imwrite(disparity_filename, disp8);
+		if(disparity_filename1)
+			imwrite(disparity_filename1, disp8);
+
+		//////////////////////////////////////////////////////////////////////////////////////////////
+
+		/*cv::StereoBM second;
+
+		second.state->roi1 = roi1;
+		second.state->roi2 = roi2;
+		second.state->preFilterCap = 31;
+		second.state->SADWindowSize = SADWindowSize > 0 ? SADWindowSize : 9;
+		second.state->minDisparity = min_Disparities;
+		second.state->numberOfDisparities = numberOfDisparities;
+		second.state->textureThreshold = 10;
+		second.state->uniquenessRatio = 15;  //5-15
+		second.state->speckleWindowSize = 2; //50-200
+		second.state->speckleRange = 1;
+		second.state->disp12MaxDiff = 10; // positive
+		cn = img1.channels();
+		INTERVAL = 50;
+		int64 t_second = cv::getTickCount();
+		second(img1, img2, disp2);
+		t_second = cv::getTickCount() - t_F;
+		printf("Time elapsed for BM_second: %fms\n", t_second*1000/cv::getTickFrequency());
+
+		disp2.convertTo(disp2_8, CV_16S, 255/(numberOfDisparities*16.));
+		if(disparity_filename2)
+			imwrite(disparity_filename2, disp2_8);
+
+		cv::Mat Diff;
+		Diff=cv::Mat::zeros(disp8.rows, disp8.cols, CV_16S);
+
+		int SSD = 0;
+		int diff = 0;
+		for(int w = 0; w < disp8.rows; ++w) {
+			for(int v = 0; v < disp8.cols; ++v) {
+				if(disp8.at<int16_t>(w,v)!=0 && disp2_8.at<int16_t>(w,v)!=0 && disp8.at<int16_t>(w,v)!=disp2_8.at<int16_t>(w,v)) //
+					{
+						cout<<"disp1: "<<disp8.at<int16_t>(w,v)<<endl;
+						cout<<"disp2: "<<disp2_8.at<int16_t>(w,v)<<endl;
+
+						diff = abs(disp8.at<int16_t>(w,v)) - abs(disp2_8.at<int16_t>(w,v));
+						SSD += diff*diff;
+
+						cout<<"diff: "<<diff<<endl;
+						cout<<endl;
+
+						Diff.at<int16_t>(w,v)=100;
+					}
+				}
+			}
+
+		imwrite("Diff.png", Diff);
+
+		cout<<"SSD: "<<SSD<<endl; */
+
+		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+		for(int w = 0; w < disp8.rows; ++w) {
+			for(int v = 0; v < disp8.cols; ++v) {
+				if(disp8.at<int16_t>(w,v)==-1)
+					{
+						disp8.at<int16_t>(w,v) = 0;
+					}
+				}
+			}
+
+
+		for(int w = 0; w < disp8.rows; ++w) {
+			for(int v = 0; v < disp8.cols; ++v) {
+				//cout<<"disp8: "<<disp8.at<int16_t>(w,v)<<endl;
+				if(disp8.at<int16_t>(w,v)==0)
+					{
+					    int st_disp = abs(disp8.at<int16_t>(w,v));
+					    int ld_disp = abs(DISP.at<int16_t>(w,v));
+					    /*cout<<"disp8: "<< st_disp <<endl;
+					    cout<<"DISP: "<< ld_disp <<endl;
+					    cout<<"diff: "<< st_disp - ld_disp <<endl;
+					    cout<<endl; */
+					    if((abs(st_disp - ld_disp)<20 && abs(st_disp - ld_disp)>5) || (abs(st_disp - ld_disp)<80 && abs(st_disp - ld_disp)>65))
+					    {
+					    	disp8.at<int16_t>(w,v) = DISP.at<int16_t>(w,v);
+					    }
+					}
+				}
+			}
+
+
+		imwrite(disparity_filename2, disp8);
+
+
+
 
 		printf("PROGRAM DONE!! \n");
 		return 0;

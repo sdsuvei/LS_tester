@@ -1,0 +1,10 @@
+Time elapsed for FLANN: 7125.345423ms
+findStereoBM
+Before call for PrefilterInvoker 
+ Time elapsed for BM: 25898273.245693ms
+PROGRAM DONE!! 
+Time elapsed for FLANN: 7116.737989ms
+findStereoBM
+Before call for PrefilterInvoker 
+ Time elapsed for BM: 25967438.234076ms
+PROGRAM DONE!! 

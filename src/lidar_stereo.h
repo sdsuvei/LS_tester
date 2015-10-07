@@ -48,7 +48,8 @@ int min_estimation = 0;
 int max_estimation = 0;
 int puncte = 0;
 int flag = 0;
-cv::Mat disp, disp8, DISP, LEFT, RIGHT;
+int INTERVAL = 0;
+cv::Mat disp, disp8, disp2, disp2_8, DISP, LEFT, RIGHT;
 //int min_D = 0;
 //int max_D = 0;
 
@@ -379,8 +380,8 @@ findStereoCorrespondenceBM( const Mat& left, const Mat& right,
             int max_D = ndisp;
             if(lidar_D>0)
             {
-            	min_D = ndisp-lidar_D-30;
-            	max_D = ndisp-lidar_D+30;
+            	min_D = ndisp-lidar_D-INTERVAL;
+            	max_D = ndisp-lidar_D+INTERVAL;
             }
 
             for( d = 0; d < ndisp; d++ )
@@ -442,7 +443,7 @@ findStereoCorrespondenceBM( const Mat& left, const Mat& right,
     Mat temp;
 	disp.convertTo(temp, CV_32F);
 	cv::normalize(temp, temp, 1, 0, CV_MINMAX);
-	imshow("After BM",temp);waitKey();
+	//imshow("After BM",temp);waitKey();
 
 }
 //---------------------------------------------------------------------------------------------------------------------------------------------------------//
@@ -717,7 +718,7 @@ static void findStereoCorrespondenceBM( const Mat& left0, const Mat& right0, Mat
 
 	disp.convertTo(temp, CV_32F);
 	cv::normalize(temp, temp, 1, 0, CV_MINMAX);
-	imshow("After Spekle",temp);waitKey();
+	//imshow("After Spekle",temp);waitKey();
 }
 
 StereoBM::StereoBM()
