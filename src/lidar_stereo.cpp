@@ -28,6 +28,7 @@ int main (int argc, char** argv)
 	extrinsic_filename = "stereo_parameters/ent.yml";
 	disparity_filename1 = "DISP1.png";
 	disparity_filename2 = "DISP2.png";
+	point_cloud_filename = "stereo_out.pcd";
 
 		int iterator=0;
 
@@ -35,7 +36,7 @@ int main (int argc, char** argv)
 		int alg = STEREO_BM;
 		int SADWindowSize = 0, numberOfDisparities = 0, min_Disparities = 0;
 		bool no_display = false;
-		float scale = 1.f;
+		float scale = 1.f; //0.5;
 
 		int color_mode = alg == STEREO_BM ? 0 : -1;
 		cv::Mat img1 = cv::imread(img1_filename, color_mode);
@@ -250,11 +251,10 @@ int main (int argc, char** argv)
 					{
 						lidar_points_mat.at<int16_t>(c_l,0)=v;
 						lidar_points_mat.at<int16_t>(c_l,1)=w;
-					lidar_points.push_back(cv::Point_<int16_t>(v,w));//Stupid CV points need (x,y), NOT (row,col)
-					lidar_point_idx_to_global_idx.push_back(c_l);
+						lidar_points.push_back(cv::Point_<int16_t>(v,w)); //Stupid CV points need (x,y), NOT (row,col)
+						lidar_point_idx_to_global_idx.push_back(c_l);
 						c_l+=1;
 					}
-
 			}
 		}
 
@@ -274,7 +274,7 @@ int main (int argc, char** argv)
 		//// Convert your 2D lidar points to FLANN matrix
 		flann::Matrix<int16_t> lidar_points_flann(reinterpret_cast<int16_t*>(&lidar_points[0]), lidar_points.size(), 2);
 		// Create single k-d tree
-		flann::KDTreeSingleIndex<flann::L1<int16_t> > kdtree_flann(lidar_points_flann);
+		flann::KDTreeSingleIndex<flann::L2_Simple<int16_t> > kdtree_flann(lidar_points_flann);    //<-------------------------------- DISTANCE FOR FLANN SEARCH
 		kdtree_flann.buildIndex();
 
 		//// Convert the 2D stereo points to FLANN
@@ -282,11 +282,14 @@ int main (int argc, char** argv)
 		//// Do search
 		vector<vector<size_t> > indices_flann;
 		vector<vector<float> > dists_flann;
-		int64 t_F = cv::getTickCount();
+		float t_F = cv::getTickCount();
+		std::clock_t c_start_1 = std::clock();
 		kdtree_flann.knnSearch(stereo_points_flann, indices_flann, dists_flann, 1, flann::SearchParams());
 	    //cout<<"check5"<<endl;
 		t_F = cv::getTickCount() - t_F;
-		printf("Time elapsed for FLANN: %fms\n", t_F*1000/cv::getTickFrequency());
+	    std::clock_t c_end_1 = std::clock();
+		printf("Time elapsed for FLANN: %f s\n", t_F/cv::getTickFrequency());
+		cout<< "CPU time used for FLANN: "<<(float)(c_end_1-c_start_1) / CLOCKS_PER_SEC << " s\n";
 
 		//// Counters for keeping track of position within the STEREO left image and the LIDAR image
 		int s_i, s_j = 0;
@@ -304,19 +307,6 @@ int main (int argc, char** argv)
 
 				////assign to each pixel in the STEREO left image the disparity of the corresponding nearest point from the LIDAR image
 				lidar_DISP.at<int16_t>(s_j,s_i) = lidar_l.at<int16_t>(l_j,l_i);
-
-				/*if(s_i >500 & s_j>500)
-				{
-					cv::circle( LEFT, cv::Point( s_j, s_i ), 10.0, cv::Scalar( 255, 128, 0  ), 1, 8 );
-					imshow("Image",LEFT);
-
-					cv::Mat temp;
-					cv::normalize(lidar_l,temp,0,255,cv::NORM_MINMAX,CV_8U);
-
-					cv::circle( temp, cv::Point( l_j, l_i ), 10.0, cv::Scalar( 255, 128, 0 ), 1, 8 );
-					imshow("Disp",temp);
-					cv::waitKey(0);
-				} */
 			}
 		}
 
@@ -343,103 +333,118 @@ int main (int argc, char** argv)
 		bm.state->disp12MaxDiff = 10; // positive
 		int cn = img1.channels();
 		INTERVAL = 30;
-		int64 t_bm = cv::getTickCount();
+
+		std::clock_t c_start = std::clock();
 		bm(img1, img2, disp);
-		t_bm = cv::getTickCount() - t_F;
-		printf("Time elapsed for BM: %fms\n", t_bm*1000/cv::getTickFrequency());
+	    std::clock_t c_end = std::clock();
 
-		disp.convertTo(disp8, CV_16S, 255/(numberOfDisparities*16.));
+	    cout<< "CPU time used for BM: "<<(float)(c_end-c_start) / CLOCKS_PER_SEC << " s\n";
+
+
+		disp = disp/16;
+
 		if(disparity_filename1)
-			imwrite(disparity_filename1, disp8);
+			imwrite(disparity_filename1, disp);
 
-		//////////////////////////////////////////////////////////////////////////////////////////////
 
-		/*cv::StereoBM second;
+		//// Infill the disparity
+		////  Fill in the -1 pixels with Lidar points
 
-		second.state->roi1 = roi1;
-		second.state->roi2 = roi2;
-		second.state->preFilterCap = 31;
-		second.state->SADWindowSize = SADWindowSize > 0 ? SADWindowSize : 9;
-		second.state->minDisparity = min_Disparities;
-		second.state->numberOfDisparities = numberOfDisparities;
-		second.state->textureThreshold = 10;
-		second.state->uniquenessRatio = 15;  //5-15
-		second.state->speckleWindowSize = 2; //50-200
-		second.state->speckleRange = 1;
-		second.state->disp12MaxDiff = 10; // positive
-		cn = img1.channels();
-		INTERVAL = 50;
-		int64 t_second = cv::getTickCount();
-		second(img1, img2, disp2);
-		t_second = cv::getTickCount() - t_F;
-		printf("Time elapsed for BM_second: %fms\n", t_second*1000/cv::getTickFrequency());
+		/*
+		for(int w = 0; w < disp.rows; ++w) {
+			for(int v = 0; v < disp.cols; ++v) {
+				if(disp.at<int16_t>(w,v)==-1)
+					{
+						cv::Point2f STEREO_POINT, LIDAR_POINT;
+						STEREO_POINT.x = v;
+						STEREO_POINT.y = w;
+						LIDAR_POINT = nn(STEREO_POINT, lidar_l);
 
-		disp2.convertTo(disp2_8, CV_16S, 255/(numberOfDisparities*16.));
+						if(DISP.at<int16_t>(LIDAR_POINT.y,LIDAR_POINT.x)!=0)
+							disp.at<int16_t>(w,v) = DISP.at<int16_t>(LIDAR_POINT.y,LIDAR_POINT.x);
+					}
+				}
+			}
+
 		if(disparity_filename2)
-			imwrite(disparity_filename2, disp2_8);
+			imwrite(disparity_filename2, disp);        */
 
-		cv::Mat Diff;
-		Diff=cv::Mat::zeros(disp8.rows, disp8.cols, CV_16S);
+		if(point_cloud_filename) {
+				printf("Storing the point cloud...");
+				cout<<endl;
+				fflush(stdout);
 
-		int SSD = 0;
-		int diff = 0;
-		for(int w = 0; w < disp8.rows; ++w) {
-			for(int v = 0; v < disp8.cols; ++v) {
-				if(disp8.at<int16_t>(w,v)!=0 && disp2_8.at<int16_t>(w,v)!=0 && disp8.at<int16_t>(w,v)!=disp2_8.at<int16_t>(w,v)) //
-					{
-						cout<<"disp1: "<<disp8.at<int16_t>(w,v)<<endl;
-						cout<<"disp2: "<<disp2_8.at<int16_t>(w,v)<<endl;
 
-						diff = abs(disp8.at<int16_t>(w,v)) - abs(disp2_8.at<int16_t>(w,v));
-						SSD += diff*diff;
+				// Get parameters for reconstruction
+				float f = P1.at<double>(0,0); // Focal length
+				float B = P2.at<double>(0,3)/f; // Baseline in the x direction
+				float cx = P1.at<double>(0,2); // Center x coordinate
+				float cy = P1.at<double>(1,2); // Center y coordinate
 
-						cout<<"diff: "<<diff<<endl;
-						cout<<endl;
-
-						Diff.at<int16_t>(w,v)=100;
+				float cx2 = P2.at<double>(0,2); // Center x coordinate of right image
+				float dcx = cx-cx2; // Difference in center x coordinates
+				int temp = disp.at<int16_t>(0,0);
+				int maxdisp = 0;
+				for(int y = 0; y < disp.rows; ++y) {
+					for(int x = 0; x<disp.cols; ++x) {
+						if(temp > disp.at<int16_t>(y,x))
+							temp = disp.at<int16_t>(y,x);
+						if(maxdisp < disp.at<int16_t>(y,x))
+							maxdisp = disp.at<int16_t>(y,x);
 					}
 				}
-			}
 
-		imwrite("Diff.png", Diff);
+				pcl::PointCloud<pcl::PointXYZRGBA>::Ptr out (new pcl::PointCloud<pcl::PointXYZRGBA>());
+				out->height = disp.cols;
+				out->width = disp.rows;
+				out->points.resize(out->height * out->width);
 
-		cout<<"SSD: "<<SSD<<endl; */
 
-		///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+				for (int i = 0; i < out->size(); i++){
+					(*out)[i].x = std::numeric_limits<float>::quiet_NaN();
+					(*out)[i].y = std::numeric_limits<float>::quiet_NaN();
+					(*out)[i].z = std::numeric_limits<float>::quiet_NaN();
+				}
 
-		for(int w = 0; w < disp8.rows; ++w) {
-			for(int v = 0; v < disp8.cols; ++v) {
-				if(disp8.at<int16_t>(w,v)==-1)
-					{
-						disp8.at<int16_t>(w,v) = 0;
+				cv::Mat_<cv::Vec3f> xyz(disp.rows, disp.cols, cv::Vec3f(0,0,0)); // Resulting point cloud, initialized to zero
+				for(int y = 0; y < disp.rows; ++y) {
+					for(int x = 0; x < disp.cols; ++x) {
+						pcl::PointXYZRGBA point;
+
+						// Avoid invalid disparities
+						if(disp.at<int16_t>(y,x) == temp) continue;
+						if(disp.at<int16_t>(y,x) == 0) continue;
+
+						float d = float(disp.at<int16_t>(y,x)) / 16.0f; // Disparity
+						float W = B/(-d+dcx); // Weighting
+
+						point.x = (float(x)-cx) * W;
+						point.y = (float(y)-cy) * W;
+						point.z = f * W;
+						//skip 0 points
+						if (point.x== 0 && point.y == 0 && point.z == 0) continue;
+						// disregard points farther then 2m
+						const double max_z = 2e3;
+						if (fabs(point.y - max_z) < FLT_EPSILON || fabs(point.y) > max_z) continue;
+						//scale position from mm to m
+						point.x = 0.001*point.x;
+						point.y = 0.001*point.y;
+						point.z = 0.001*point.z;
+						//add color
+						cv::Vec3b bgr = img_colored.at<cv::Vec3b>(y,x);
+						point.b = bgr[0];
+						point.g = bgr[1];
+						point.r = bgr[2];
+
+						out->at(y, x) = point;
 					}
 				}
+				pcl::io::savePCDFile(point_cloud_filename, *out);
+
+				//saveXYZ(point_cloud_filename, xyz);
+				//showXYZ(xyz, img_colored, point_cloud_filename);
+				printf("\n");
 			}
-
-
-		for(int w = 0; w < disp8.rows; ++w) {
-			for(int v = 0; v < disp8.cols; ++v) {
-				//cout<<"disp8: "<<disp8.at<int16_t>(w,v)<<endl;
-				if(disp8.at<int16_t>(w,v)==0)
-					{
-					    int st_disp = abs(disp8.at<int16_t>(w,v));
-					    int ld_disp = abs(DISP.at<int16_t>(w,v));
-					    /*cout<<"disp8: "<< st_disp <<endl;
-					    cout<<"DISP: "<< ld_disp <<endl;
-					    cout<<"diff: "<< st_disp - ld_disp <<endl;
-					    cout<<endl; */
-					    if((abs(st_disp - ld_disp)<20 && abs(st_disp - ld_disp)>5) || (abs(st_disp - ld_disp)<80 && abs(st_disp - ld_disp)>65))
-					    {
-					    	disp8.at<int16_t>(w,v) = DISP.at<int16_t>(w,v);
-					    }
-					}
-				}
-			}
-
-
-		imwrite(disparity_filename2, disp8);
-
-
 
 
 		printf("PROGRAM DONE!! \n");

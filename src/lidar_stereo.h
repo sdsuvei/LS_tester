@@ -36,6 +36,7 @@
 
 #include <iostream>
 #include <stdio.h>
+#include <ctime>
 
 using pcl::visualization::PointCloudColorHandlerGenericField;
 using pcl::visualization::PointCloudColorHandlerCustom;
@@ -59,6 +60,46 @@ typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
 typedef pcl::PointNormal PointNormalT;
 typedef pcl::PointCloud<PointNormalT> PointCloudWithNormals;
+
+cv::Point2f nn(cv::Point2f src, cv::Mat edges) {
+	 cv::Point2f dst;
+	// Edge point coordinate, given in template
+	const int c = src.x;
+	const int r = src.y;
+	// Global image coordinates of edge point
+	const int cglobal = c;
+	const int rglobal = r;
+	// Search for nearest destination point around the center point (rglobal,cglobal)
+	int rad = 1; // Search boxes of increasing size
+	// Distance and coordinate of closest matching edge point
+	int mindist = INT_MAX;
+	int rmin = -1;
+	int cmin = -1;
+	// Search increasingly big boxes until we find a match or until we reach the image border
+	while(mindist == INT_MAX && rad<25) {
+		// Search the current box
+		for(int rr = max(0, rglobal-rad); rr <= min(edges.rows-1, rglobal+rad); ++rr) {
+			for(int cc = max(0, cglobal-rad); cc <= min(edges.cols-1, cglobal+rad); ++cc) {
+				if(edges.at<int16_t>(rr,cc) > 0) { // If current point is non-zero
+					const int dist = abs(rglobal-rr) + abs(cglobal-cc);
+					if(dist < mindist) {
+						mindist = dist;
+						rmin = rr;
+						cmin = cc;
+					}
+				}
+			}
+		}
+		// Expand the box
+		++rad;
+	}
+	// Save corresponding point
+	//dst.x=cmin;
+	//dst.y=rmin;
+	dst = cv::Point2f(cmin,rmin);
+
+    return dst;
+}
 
 CV_IMPL CvStereoBMState* cvCreateStereoBMState( int /*preset*/, int numberOfDisparities )
 {
@@ -375,6 +416,7 @@ findStereoCorrespondenceBM( const Mat& left, const Mat& right,
         	imshow("Disp",temp);
         	cv::waitKey(0);*/
         	//cout<<"y:"<<y<<"  x:"<<x<<endl;
+
 
             int min_D = 0;
             int max_D = ndisp;

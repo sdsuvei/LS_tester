@@ -65,6 +65,8 @@ iostream
 -
 stdio.h
 -
+ctime
+-
 
 /home/sdsuvei/workspace/pcl_ws/lidar_stereo/src/precomp.hpp
 cvconfig.h
