@@ -38,6 +38,7 @@
 #include <stdio.h>
 #include <ctime>
 
+
 using pcl::visualization::PointCloudColorHandlerGenericField;
 using pcl::visualization::PointCloudColorHandlerCustom;
 

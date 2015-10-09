@@ -282,13 +282,14 @@ int main (int argc, char** argv)
 		//// Do search
 		vector<vector<size_t> > indices_flann;
 		vector<vector<float> > dists_flann;
-		float t_F = cv::getTickCount();
+
 		std::clock_t c_start_1 = std::clock();
+		time_t start_f = time(0);
 		kdtree_flann.knnSearch(stereo_points_flann, indices_flann, dists_flann, 1, flann::SearchParams());
-	    //cout<<"check5"<<endl;
-		t_F = cv::getTickCount() - t_F;
+	    time_t end_f = time(0);
 	    std::clock_t c_end_1 = std::clock();
-		printf("Time elapsed for FLANN: %f s\n", t_F/cv::getTickFrequency());
+	    double time_f = difftime(end_f, start_f);
+	    cout<<"Wall time used for FLANN: "<<time_f<<" s"<<endl;
 		cout<< "CPU time used for FLANN: "<<(float)(c_end_1-c_start_1) / CLOCKS_PER_SEC << " s\n";
 
 		//// Counters for keeping track of position within the STEREO left image and the LIDAR image
@@ -334,11 +335,34 @@ int main (int argc, char** argv)
 		int cn = img1.channels();
 		INTERVAL = 30;
 
-		std::clock_t c_start = std::clock();
-		bm(img1, img2, disp);
-	    std::clock_t c_end = std::clock();
 
-	    cout<< "CPU time used for BM: "<<(float)(c_end-c_start) / CLOCKS_PER_SEC << " s\n";
+	    struct timeval start, end;
+
+	    long mtime, seconds, useconds;
+
+
+		std::clock_t c_start = std::clock();
+		//time_t start = time(0);
+
+	    gettimeofday(&start, NULL);
+
+
+		bm(img1, img2, disp);
+
+		gettimeofday(&end, NULL);
+
+	    seconds  = end.tv_sec  - start.tv_sec;
+	    useconds = end.tv_usec - start.tv_usec;
+
+	    mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
+
+	    printf("Elapsed time: %ld milliseconds\n", mtime);
+
+	    std::clock_t c_end = std::clock();
+	    //time_t end = time(0);
+	    //double time = difftime(end, start);
+	    //cout<<"Wall time used for BM: "<<time<<" s"<<endl;
+	    //cout<< "CPU time used for BM: "<<(float)(c_end-c_start) / CLOCKS_PER_SEC << " s\n";
 
 
 		disp = disp/16;
@@ -349,8 +373,6 @@ int main (int argc, char** argv)
 
 		//// Infill the disparity
 		////  Fill in the -1 pixels with Lidar points
-
-		/*
 		for(int w = 0; w < disp.rows; ++w) {
 			for(int v = 0; v < disp.cols; ++v) {
 				if(disp.at<int16_t>(w,v)==-1)
@@ -367,84 +389,82 @@ int main (int argc, char** argv)
 			}
 
 		if(disparity_filename2)
-			imwrite(disparity_filename2, disp);        */
+			imwrite(disparity_filename2, disp);
 
 		if(point_cloud_filename) {
-				printf("Storing the point cloud...");
-				cout<<endl;
-				fflush(stdout);
+			printf("Storing the point cloud...");
+			cout<<endl;
+			fflush(stdout);
+			// Get parameters for reconstruction
+			float f = P1.at<double>(0,0); // Focal length
+			float B = P2.at<double>(0,3)/f; // Baseline in the x direction
+			float cx = P1.at<double>(0,2); // Center x coordinate
+			float cy = P1.at<double>(1,2); // Center y coordinate
 
-
-				// Get parameters for reconstruction
-				float f = P1.at<double>(0,0); // Focal length
-				float B = P2.at<double>(0,3)/f; // Baseline in the x direction
-				float cx = P1.at<double>(0,2); // Center x coordinate
-				float cy = P1.at<double>(1,2); // Center y coordinate
-
-				float cx2 = P2.at<double>(0,2); // Center x coordinate of right image
-				float dcx = cx-cx2; // Difference in center x coordinates
-				int temp = disp.at<int16_t>(0,0);
-				int maxdisp = 0;
-				for(int y = 0; y < disp.rows; ++y) {
-					for(int x = 0; x<disp.cols; ++x) {
-						if(temp > disp.at<int16_t>(y,x))
-							temp = disp.at<int16_t>(y,x);
-						if(maxdisp < disp.at<int16_t>(y,x))
-							maxdisp = disp.at<int16_t>(y,x);
-					}
+			float cx2 = P2.at<double>(0,2); // Center x coordinate of right image
+			float dcx = cx-cx2; // Difference in center x coordinates
+			int temp = disp.at<int16_t>(0,0);
+			int maxdisp = 0;
+			for(int y = 0; y < disp.rows; ++y) {
+				for(int x = 0; x<disp.cols; ++x) {
+					if(temp > disp.at<int16_t>(y,x))
+						temp = disp.at<int16_t>(y,x);
+					if(maxdisp < disp.at<int16_t>(y,x))
+						maxdisp = disp.at<int16_t>(y,x);
 				}
-
-				pcl::PointCloud<pcl::PointXYZRGBA>::Ptr out (new pcl::PointCloud<pcl::PointXYZRGBA>());
-				out->height = disp.cols;
-				out->width = disp.rows;
-				out->points.resize(out->height * out->width);
-
-
-				for (int i = 0; i < out->size(); i++){
-					(*out)[i].x = std::numeric_limits<float>::quiet_NaN();
-					(*out)[i].y = std::numeric_limits<float>::quiet_NaN();
-					(*out)[i].z = std::numeric_limits<float>::quiet_NaN();
-				}
-
-				cv::Mat_<cv::Vec3f> xyz(disp.rows, disp.cols, cv::Vec3f(0,0,0)); // Resulting point cloud, initialized to zero
-				for(int y = 0; y < disp.rows; ++y) {
-					for(int x = 0; x < disp.cols; ++x) {
-						pcl::PointXYZRGBA point;
-
-						// Avoid invalid disparities
-						if(disp.at<int16_t>(y,x) == temp) continue;
-						if(disp.at<int16_t>(y,x) == 0) continue;
-
-						float d = float(disp.at<int16_t>(y,x)) / 16.0f; // Disparity
-						float W = B/(-d+dcx); // Weighting
-
-						point.x = (float(x)-cx) * W;
-						point.y = (float(y)-cy) * W;
-						point.z = f * W;
-						//skip 0 points
-						if (point.x== 0 && point.y == 0 && point.z == 0) continue;
-						// disregard points farther then 2m
-						const double max_z = 2e3;
-						if (fabs(point.y - max_z) < FLT_EPSILON || fabs(point.y) > max_z) continue;
-						//scale position from mm to m
-						point.x = 0.001*point.x;
-						point.y = 0.001*point.y;
-						point.z = 0.001*point.z;
-						//add color
-						cv::Vec3b bgr = img_colored.at<cv::Vec3b>(y,x);
-						point.b = bgr[0];
-						point.g = bgr[1];
-						point.r = bgr[2];
-
-						out->at(y, x) = point;
-					}
-				}
-				pcl::io::savePCDFile(point_cloud_filename, *out);
-
-				//saveXYZ(point_cloud_filename, xyz);
-				//showXYZ(xyz, img_colored, point_cloud_filename);
-				printf("\n");
 			}
+
+			pcl::PointCloud<pcl::PointXYZRGBA>::Ptr out (new pcl::PointCloud<pcl::PointXYZRGBA>());
+			out->height = disp.rows;
+			out->width = disp.cols;
+			out->points.resize(out->height * out->width);
+
+
+			for (int i = 0; i < out->size(); i++){
+				(*out)[i].x = std::numeric_limits<float>::quiet_NaN();
+				(*out)[i].y = std::numeric_limits<float>::quiet_NaN();
+				(*out)[i].z = std::numeric_limits<float>::quiet_NaN();
+			}
+
+			cv::Mat_<cv::Vec3f> xyz(disp.rows, disp.cols, cv::Vec3f(0,0,0)); // Resulting point cloud, initialized to zero
+			for(int y = 0; y < disp.rows; ++y) {
+				for(int x = 0; x < disp.cols; ++x) {
+					pcl::PointXYZRGBA point;
+
+					// Avoid invalid disparities
+					if(disp.at<int16_t>(y,x) == temp) continue;
+					if(disp.at<int16_t>(y,x) == 0) continue;
+
+					float d = float(disp.at<int16_t>(y,x)); // Disparity
+					float W = B/(-d+dcx); // Weighting
+
+					point.x = (float(x)-cx) * W;
+					point.y = (float(y)-cy) * W;
+					point.z = f * W;
+					//skip 0 points
+					if (point.x== 0 && point.y == 0 && point.z == 0) continue;
+					// disregard points farther then 2m
+					const double max_z = 2e3;
+					if (fabs(point.y - max_z) < FLT_EPSILON || fabs(point.y) > max_z) continue;
+					//scale position from mm to m
+					point.x = 0.001*point.x;
+					point.y = 0.001*point.y;
+					point.z = 0.001*point.z;
+					//add color
+					cv::Vec3b bgr = img_colored.at<cv::Vec3b>(y,x);
+					point.b = bgr[0];
+					point.g = bgr[1];
+					point.r = bgr[2];
+
+					out->at(x,y) = point;
+				}
+			}
+			pcl::io::savePCDFile(point_cloud_filename, *out);
+
+			//saveXYZ(point_cloud_filename, xyz);
+			//showXYZ(xyz, img_colored, point_cloud_filename);
+			printf("\n");
+		}
 
 
 		printf("PROGRAM DONE!! \n");
