@@ -24,8 +24,8 @@ int main (int argc, char** argv)
 
 	img1_filename = "left.jpg";
 	img2_filename = "right.jpg";
-	intrinsic_filename = "stereo_parameters/int.yml";
-	extrinsic_filename = "stereo_parameters/ent.yml";
+	intrinsic_filename = "stereo_parameters_new/int.yml";
+	extrinsic_filename = "stereo_parameters_new/ent.yml";
 	disparity_filename1 = "DISP1.png";
 	disparity_filename2 = "DISP2.png";
 	point_cloud_filename = "stereo_out.pcd";
@@ -128,35 +128,35 @@ int main (int argc, char** argv)
 		//// The Transform Matrix which moves the lidar points in the stereo camera frame
 		//// This matrix comes from the ICP algorithm appliead before-hand
 		Eigen::Matrix4f transform_lTs = Eigen::Matrix4f::Identity();
-		transform_lTs(0,0) = -0.0282604;
-		transform_lTs(0,1) = 0.997477;
-		transform_lTs(0,2) = 0.0656693;
-		transform_lTs(0,3) = 0.815621;
+		transform_lTs(0,0) = -0.0298508; //-0.0277619;
+		transform_lTs(0,1) =  0.999563; //0.99962;
+		transform_lTs(0,2) = -0.00252324; //-0.000680065;
+		transform_lTs(0,3) = 0.752321; //0.763683;
 
-		transform_lTs(1,0) = 0.136367;
-		transform_lTs(1,1) = 0.0689264;
-		transform_lTs(1,2) = -0.988274;
-		transform_lTs(1,3) = 0.049019;
+		transform_lTs(1,0) = 0.242289; //0.242838;
+		transform_lTs(1,1) = 0.00478399; //0.00608248;
+		transform_lTs(1,2) =  -0.970206; //-0.970079;
+		transform_lTs(1,3) = 0.128226; //0.130637;
 
-		transform_lTs(2,0) = -0.990292;
-		transform_lTs(2,1) = -0.0189803;
-		transform_lTs(2,2) = -0.137977;
-		transform_lTs(2,3) = 2.12426;
+		transform_lTs(2,0) = -0.969755; //-0.969682;
+		transform_lTs(2,1) = -0.0295702; //-0.0270913;
+		transform_lTs(2,2) = -0.242321; //-0.242909;
+		transform_lTs(2,3) = 2.05342; //2.06299;
 
 
 		//// This is the R matrix from the calibration process - it will overlap the LIDAR onto the STEREO view
 		Eigen::Matrix4f transform_lTs_R = Eigen::Matrix4f::Identity();
-		transform_lTs_R(0,0) = 0.9998742815117727;
-		transform_lTs_R(0,1) =  -0.005362130892552267;
-		transform_lTs_R(0,2) =	0.01492208844658231;
+		transform_lTs_R(0,0) = 0.9999898012149877; //0.9998742815117727;
+		transform_lTs_R(0,1) = -0.004498446772515268; //-0.005362130892552267;
+		transform_lTs_R(0,2) =	-0.0004017992584439221; //0.01492208844658231;
 
-		transform_lTs_R(1,0) = 0.005336969170805187;
-		transform_lTs_R(1,1) = 0.9999842695505317;
-		transform_lTs_R(1,2) = 0.001725517765564668;
+		transform_lTs_R(1,0) = 0.004497161244118079; //0.005336969170805187;
+		transform_lTs_R(1,1) = 0.9999849421569889; //0.9999842695505317;
+		transform_lTs_R(1,2) = -0.003144996029905281; //0.001725517765564668;
 
-		transform_lTs_R(2,0) = -0.01493110616754043;
-		transform_lTs_R(2,1) = -0.001645662110076336;
-		transform_lTs_R(2,2) = 0.999887170567176;
+		transform_lTs_R(2,0) = 0.0004159408054540794; //-0.01493110616754043;
+		transform_lTs_R(2,1) = 0.00314315699871394; //-0.001645662110076336;
+		transform_lTs_R(2,2) = 0.9999949737660324; //0.999887170567176;
 
 		//cout<<"T2:"<<endl<<transform_lTs_R<<endl;
 
@@ -283,14 +283,18 @@ int main (int argc, char** argv)
 		vector<vector<size_t> > indices_flann;
 		vector<vector<float> > dists_flann;
 
-		std::clock_t c_start_1 = std::clock();
-		time_t start_f = time(0);
+	    struct timeval start_f, end_f;
+	    long mtime_f, seconds_f, useconds_f;
+	    gettimeofday(&start_f, NULL);
+
 		kdtree_flann.knnSearch(stereo_points_flann, indices_flann, dists_flann, 1, flann::SearchParams());
-	    time_t end_f = time(0);
-	    std::clock_t c_end_1 = std::clock();
-	    double time_f = difftime(end_f, start_f);
-	    cout<<"Wall time used for FLANN: "<<time_f<<" s"<<endl;
-		cout<< "CPU time used for FLANN: "<<(float)(c_end_1-c_start_1) / CLOCKS_PER_SEC << " s\n";
+
+		gettimeofday(&end_f, NULL);
+	    seconds_f  = end_f.tv_sec  - start_f.tv_sec;
+	    useconds_f = end_f.tv_usec - start_f.tv_usec;
+	    mtime_f = ((seconds_f) * 1000 + useconds_f/1000.0) + 0.5;
+	    printf("Elapsed time for FLANN: %f seconds\n", (float)mtime_f/1000);
+
 
 		//// Counters for keeping track of position within the STEREO left image and the LIDAR image
 		int s_i, s_j = 0;
@@ -306,8 +310,13 @@ int main (int argc, char** argv)
 				l_i=lidar_points_mat.row( lidar_point_idx_to_global_idx.at(indices_flann.at(ot).at(in)) ).at<int16_t>(0,0);
 				l_j=lidar_points_mat.row( lidar_point_idx_to_global_idx.at(indices_flann.at(ot).at(in)) ).at<int16_t>(0,1);
 
+				//cout<<"s_i: "<< s_i<<"  s_j: "<< s_j<<"  l_i: "<< l_i<<"  l_j: "<< l_j<<endl;
+				if(abs(s_i-l_i)<20 && abs(s_j-l_j)<20)
+					{
+						lidar_DISP.at<int16_t>(s_j,s_i) = lidar_l.at<int16_t>(l_j,l_i);
+					}
 				////assign to each pixel in the STEREO left image the disparity of the corresponding nearest point from the LIDAR image
-				lidar_DISP.at<int16_t>(s_j,s_i) = lidar_l.at<int16_t>(l_j,l_i);
+				//lidar_DISP.at<int16_t>(s_j,s_i) = lidar_l.at<int16_t>(l_j,l_i);
 			}
 		}
 
@@ -316,56 +325,39 @@ int main (int argc, char** argv)
 		/*
 		//// Normalize the disparity map (for viewing)
 		cv::Mat temp;
-		cv::normalize(lidar_l,temp,0,255,cv::NORM_MINMAX,CV_8U);
-		*/
+		cv::normalize(DISP,temp,0,255,cv::NORM_MINMAX,CV_8U);
+		imshow("disp",temp);cv::waitKey(); */
 
 		cv::StereoBM bm;
 
 		bm.state->roi1 = roi1;
 		bm.state->roi2 = roi2;
-		bm.state->preFilterCap = 31;
+		bm.state->preFilterCap = 63;
 		bm.state->SADWindowSize = SADWindowSize > 0 ? SADWindowSize : 9;
 		bm.state->minDisparity = min_Disparities;
 		bm.state->numberOfDisparities = numberOfDisparities;
 		bm.state->textureThreshold = 10;
 		bm.state->uniquenessRatio = 15;  //5-15
-		bm.state->speckleWindowSize = 2; //50-200
-		bm.state->speckleRange = 1;
-		bm.state->disp12MaxDiff = 10; // positive
+		bm.state->speckleWindowSize = 100; //50-200
+		bm.state->speckleRange = 32;
+		bm.state->disp12MaxDiff = 1; // positive
 		int cn = img1.channels();
-		INTERVAL = 30;
-
+		INTERVAL = 60; // changes the search range inside the BM method
 
 	    struct timeval start, end;
-
 	    long mtime, seconds, useconds;
-
-
-		std::clock_t c_start = std::clock();
-		//time_t start = time(0);
-
 	    gettimeofday(&start, NULL);
 
-
-		bm(img1, img2, disp);
+		bm(img1, img2, disp); // <-----------------------------------
 
 		gettimeofday(&end, NULL);
-
 	    seconds  = end.tv_sec  - start.tv_sec;
 	    useconds = end.tv_usec - start.tv_usec;
-
 	    mtime = ((seconds) * 1000 + useconds/1000.0) + 0.5;
-
-	    printf("Elapsed time: %ld milliseconds\n", mtime);
-
-	    std::clock_t c_end = std::clock();
-	    //time_t end = time(0);
-	    //double time = difftime(end, start);
-	    //cout<<"Wall time used for BM: "<<time<<" s"<<endl;
-	    //cout<< "CPU time used for BM: "<<(float)(c_end-c_start) / CLOCKS_PER_SEC << " s\n";
+	    printf("Elapsed time for BM: %f seconds\n", (float)mtime/1000);
 
 
-		disp = disp/16;
+		disp = disp/16; //because it is multiplied by 16 inside the BM method!!
 
 		if(disparity_filename1)
 			imwrite(disparity_filename1, disp);
@@ -375,15 +367,9 @@ int main (int argc, char** argv)
 		////  Fill in the -1 pixels with Lidar points
 		for(int w = 0; w < disp.rows; ++w) {
 			for(int v = 0; v < disp.cols; ++v) {
-				if(disp.at<int16_t>(w,v)==-1)
+				if(disp.at<int16_t>(w,v)==-1 && DISP.at<int16_t>(w,v)>0)
 					{
-						cv::Point2f STEREO_POINT, LIDAR_POINT;
-						STEREO_POINT.x = v;
-						STEREO_POINT.y = w;
-						LIDAR_POINT = nn(STEREO_POINT, lidar_l);
-
-						if(DISP.at<int16_t>(LIDAR_POINT.y,LIDAR_POINT.x)!=0)
-							disp.at<int16_t>(w,v) = DISP.at<int16_t>(LIDAR_POINT.y,LIDAR_POINT.x);
+						disp.at<int16_t>(w,v) = DISP.at<int16_t>(w,v);
 					}
 				}
 			}

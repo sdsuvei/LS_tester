@@ -111,7 +111,7 @@ CV_IMPL CvStereoBMState* cvCreateStereoBMState( int /*preset*/, int numberOfDisp
     state->preFilterType = CV_STEREO_BM_XSOBEL; //CV_STEREO_BM_NORMALIZED_RESPONSE;
     state->preFilterSize = 9;
     state->preFilterCap = 31;
-    state->SADWindowSize = 15;
+    state->SADWindowSize = 15; //15
     state->minDisparity = 0;
     state->numberOfDisparities = numberOfDisparities > 0 ? numberOfDisparities : 64;
     state->textureThreshold = 10;
@@ -269,7 +269,7 @@ findStereoCorrespondenceBM( const Mat& left, const Mat& right,
 {
     const int ALIGN = 16;
     int x, y, d;
-    int wsz = state.SADWindowSize, wsz2 = wsz/2;             // wsz = 9;   wsz2 = 4;
+    int wsz = state.SADWindowSize, wsz2 = wsz/2;             // wsz = 9;   wsz2 = 4;    <-------------------------------------------------- SADWindow
     int dy0 = MIN(_dy0, wsz2+1), dy1 = MIN(_dy1, wsz2+1);    // dy0 = 5; dy1 = 5;
     int ndisp = state.numberOfDisparities;                   // ndisp = 240;
     int mindisp = state.minDisparity;                        // mindisp = 0;
@@ -421,10 +421,15 @@ findStereoCorrespondenceBM( const Mat& left, const Mat& right,
 
             int min_D = 0;
             int max_D = ndisp;
-            if(lidar_D>0)
+            if(lidar_D!=0)
             {
             	min_D = ndisp-lidar_D-INTERVAL;
             	max_D = ndisp-lidar_D+INTERVAL;
+            }
+            else
+            {
+                int min_D = 0;
+                int max_D = ndisp;
             }
 
             for( d = 0; d < ndisp; d++ )
@@ -439,6 +444,8 @@ findStereoCorrespondenceBM( const Mat& left, const Mat& right,
                 }
             }
 
+            min_D = 0;
+            max_D = ndisp;
             //minsad=0;
             //mind=lidar_D;
 
@@ -618,9 +625,6 @@ protected:
 
 static void findStereoCorrespondenceBM( const Mat& left0, const Mat& right0, Mat& disp0, CvStereoBMState* state)
 {
-
-	cout<<"findStereoBM"<<endl;
-
     if (left0.size() != right0.size() || disp0.size() != left0.size())
         CV_Error( CV_StsUnmatchedSizes, "All the images must have the same size" );
 
@@ -728,7 +732,6 @@ static void findStereoCorrespondenceBM( const Mat& left0, const Mat& right0, Mat
 
     uchar *_buf = state->slidingSumBuf->data.ptr;
     int idx[] = {0,1};
-     printf("Before call for PrefilterInvoker \n ");
     parallel_do(idx, idx+2, PrefilterInvoker(left0, right0, left, right, _buf, _buf + bufSize1, state));
     // printf("After call for PrefilterInvoker \n\n ");
     Rect validDisparityRect(0, 0, width, height), R1 = state->roi1, R2 = state->roi2;
