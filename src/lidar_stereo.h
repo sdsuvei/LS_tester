@@ -56,6 +56,12 @@ cv::Mat disp, disp8, disp2, disp2_8, DISP, LEFT, RIGHT;
 //int max_D = 0;
 
 
+static void print_help()
+{
+	printf("\nStereo matching guided by LIDAR -- converting L and R images into disparity and point cloud.\n");
+	printf("\nUsage: Stereo_Match <left_image> <right_image> [improvement=no_fill|fill] [thread=single|multi] \n");
+}
+
 //convenient typedefs
 typedef pcl::PointXYZ PointT;
 typedef pcl::PointCloud<PointT> PointCloud;
@@ -425,11 +431,6 @@ findStereoCorrespondenceBM( const Mat& left, const Mat& right,
             {
             	min_D = ndisp-lidar_D-INTERVAL;
             	max_D = ndisp-lidar_D+INTERVAL;
-            }
-            else
-            {
-                int min_D = 0;
-                int max_D = ndisp;
             }
 
             for( d = 0; d < ndisp; d++ )

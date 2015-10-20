@@ -3,12 +3,17 @@
 int main (int argc, char** argv)
 {
 
-	const char* algorithm_opt = "--algorithm=";
-	const char* maxdisp_opt = "--max-disparity=";
-	const char* mindisp_opt = "--min-disparity=";
-	const char* blocksize_opt = "--blocksize=";
-	const char* nodisplay_opt = "--no-display=";
-	const char* scale_opt = "--scale=";
+	//const char* algorithm_opt = "--algorithm=";
+	//const char* maxdisp_opt = "--max-disparity=";
+	//const char* mindisp_opt = "--min-disparity=";
+	//const char* blocksize_opt = "--blocksize=";
+	//const char* nodisplay_opt = "--no-display=";
+	//const char* scale_opt = "--scale=";
+
+	if(argc < 3) {
+		print_help();
+		return 0;
+	}
 
 	const char* img1_filename = 0; //left image
 	const char* img2_filename = 0; //right image
@@ -20,10 +25,69 @@ int main (int argc, char** argv)
 	const char* experiment_filename_2 = 0;
 	const char* point_cloud_filename = 0;
 
-	cv::setNumThreads(0);
+	// Elementes for the filling option -- fill the empty disparity pixels with LIDAR information
+	const char* improvement = "--improvement=";
+	enum {NO_FILL = 0, FILL = 1};
+	int imp = 0;
 
-	img1_filename = "left.jpg";
-	img2_filename = "right.jpg";
+	// Elementes for the filling option -- fill the empty disparity pixels with LIDAR information
+	const char* thread = "--thread=";
+	enum {SINGLE = 0, MULTI = 1};
+	int thr = 0;
+
+	for( int i = 1; i < argc; i++ )
+	{
+		if( argv[i][0] != '-' )
+		{
+			if( !img1_filename )
+				img1_filename = argv[i];
+			else
+				img2_filename = argv[i];
+		}
+		else if( strncmp(argv[i], improvement, strlen(improvement)) == 0 )
+		{
+			char* _imp = argv[i] + strlen(improvement);
+			 imp = strcmp(_imp, "no_fill") == 0 ? NO_FILL :
+					strcmp(_imp, "fill") == 0 ? FILL : -1;
+			if( imp < 0 )
+			{
+				printf("Command-line parameter error: Unknown improvement option\n\n");
+				print_help();
+				return -1;
+			}
+		}
+		else if(strncmp(argv[i], thread, strlen(thread)) == 0 )
+		{
+			char* _thr = argv[i] + strlen(thread);
+			 thr = strcmp(_thr, "single") == 0 ? SINGLE :
+					strcmp(_thr, "multi") == 0 ? MULTI : -1;
+			if( imp < 0 )
+			{
+				printf("Command-line parameter error: Unknown thread option\n\n");
+				print_help();
+				return -1;
+			}
+		}
+	}
+
+	if( !img1_filename || !img2_filename )
+	{
+		printf("Command-line parameter error: both left and right images must be specified\n");
+		return -1;
+	}
+
+	// Select threading option -- single or multi
+	if(thr==SINGLE)
+	{
+		cv::setNumThreads(0);
+		cout<<"Multithreading OFF"<<endl;
+	}
+	else
+	{
+		cv::setNumThreads(1);
+		cout<<"Multithreading ON"<<endl;
+	}
+
 	intrinsic_filename = "stereo_parameters_new/int.yml";
 	extrinsic_filename = "stereo_parameters_new/ent.yml";
 	disparity_filename1 = "DISP1.png";
@@ -365,17 +429,21 @@ int main (int argc, char** argv)
 
 		//// Infill the disparity
 		////  Fill in the -1 pixels with Lidar points
-		for(int w = 0; w < disp.rows; ++w) {
-			for(int v = 0; v < disp.cols; ++v) {
-				if(disp.at<int16_t>(w,v)==-1 && DISP.at<int16_t>(w,v)>0)
-					{
-						disp.at<int16_t>(w,v) = DISP.at<int16_t>(w,v);
-					}
-				}
-			}
+		if(imp==FILL){
+			cout<<"Filling disparity with LIDAR information..."<<endl;
+			for(int w = 0; w < disp.rows; ++w) {
+						for(int v = 0; v < disp.cols; ++v) {
+							if(disp.at<int16_t>(w,v)==-1 && DISP.at<int16_t>(w,v)>1)
+								{
+									disp.at<int16_t>(w,v) = DISP.at<int16_t>(w,v);
+									//cout<<"filled in disp:"<<disp.at<int16_t>(w,v)<<endl;
+								}
+							}
+						}
 
-		if(disparity_filename2)
-			imwrite(disparity_filename2, disp);
+					if(disparity_filename2)
+						imwrite(disparity_filename2, disp);
+		}
 
 		if(point_cloud_filename) {
 			printf("Storing the point cloud...");
