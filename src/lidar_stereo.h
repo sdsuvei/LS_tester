@@ -59,7 +59,7 @@ cv::Mat disp, disp8, disp2, disp2_8, DISP, LEFT, RIGHT;
 static void print_help()
 {
 	printf("\nStereo matching guided by LIDAR -- converting L and R images into disparity and point cloud.\n");
-	printf("\nUsage: Stereo_Match <left_image> <right_image> [improvement=no_fill|fill] [thread=single|multi] \n");
+	printf("\nUsage: Stereo_Match <left_image> <right_image> [--improvement=no_fill|fill] [--thread=single|multi] \n");
 }
 
 //convenient typedefs

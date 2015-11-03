@@ -33,7 +33,7 @@ int main (int argc, char** argv)
 	// Elementes for the filling option -- fill the empty disparity pixels with LIDAR information
 	const char* thread = "--thread=";
 	enum {SINGLE = 0, MULTI = 1};
-	int thr = 0;
+	int thr = 1;
 
 	for( int i = 1; i < argc; i++ )
 	{
@@ -385,6 +385,16 @@ int main (int argc, char** argv)
 		}
 
 		DISP = lidar_DISP;
+
+		cv::Mat src = lidar_l; // cv::imread("lidar_disp.png");
+		cv::Mat dst = cv::Mat::zeros(img1.rows, img1.cols, CV_16S);;
+
+	    cv::Mat kernel = cv::Mat::ones(3,3,CV_16S);
+	    cv::dilate(src,dst, kernel, cv::Point(-1, -1), 10, 1, 1);
+	    // Apply the specified morphology operation
+		//morphologyEx( src, dst, MORPH_TOPHAT, element ); // here iteration=1
+		cv::imwrite("dilated_lidar.png",dst);
+		DISP = dst;
 
 		/*
 		//// Normalize the disparity map (for viewing)
