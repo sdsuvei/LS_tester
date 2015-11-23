@@ -17,27 +17,39 @@
 #include "flann/flann.hpp"
 #include "precomp.hpp"
 
-#include <pcl/point_types.h>
-#include <pcl/filters/passthrough.h>
-#include <pcl/io/pcd_io.h>
-#include <pcl/io/ply_io.h>
-#include <pcl/point_cloud.h>
-#include <pcl/console/parse.h>
-#include <pcl/common/transforms.h>
-#include <pcl/visualization/pcl_visualizer.h>
-#include <boost/make_shared.hpp>
-#include <pcl/point_representation.h>
-#include <pcl/filters/voxel_grid.h>
-#include <pcl/filters/filter.h>
-#include <pcl/features/normal_3d.h>
-#include <pcl/registration/icp.h>
-#include <pcl/registration/icp_nl.h>
-#include <pcl/registration/transforms.h>
-
 #include <iostream>
 #include <stdio.h>
 #include <ctime>
 
+#include <boost/thread/thread.hpp>
+#include <boost/make_shared.hpp>
+
+#include <pcl/io/pcd_io.h>
+#include <pcl/io/ply_io.h>
+#include <pcl/point_cloud.h>
+#include <pcl/point_types.h>
+#include <pcl/console/parse.h>
+#include <pcl/common/transforms.h>
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/point_representation.h>
+#include <pcl/filters/voxel_grid.h>
+#include <pcl/filters/filter.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/features/normal_3d.h>
+#include <pcl/registration/icp.h>
+#include <pcl/registration/icp_nl.h>
+#include <pcl/registration/transforms.h>
+#include <pcl/filters/passthrough.h>
+#include <pcl/filters/extract_indices.h>
+#include <pcl/ModelCoefficients.h>
+#include <pcl/sample_consensus/method_types.h>
+#include <pcl/sample_consensus/model_types.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/segmentation/sac_segmentation.h>
+#include <pcl/segmentation/extract_clusters.h>
+#include <pcl/kdtree/kdtree.h>
+#include <pcl/visualization/cloud_viewer.h>
 
 using pcl::visualization::PointCloudColorHandlerGenericField;
 using pcl::visualization::PointCloudColorHandlerCustom;
@@ -68,44 +80,33 @@ typedef pcl::PointCloud<PointT> PointCloud;
 typedef pcl::PointNormal PointNormalT;
 typedef pcl::PointCloud<PointNormalT> PointCloudWithNormals;
 
-cv::Point2f nn(cv::Point2f src, cv::Mat edges) {
-	 cv::Point2f dst;
-	// Edge point coordinate, given in template
-	const int c = src.x;
-	const int r = src.y;
-	// Global image coordinates of edge point
-	const int cglobal = c;
-	const int rglobal = r;
-	// Search for nearest destination point around the center point (rglobal,cglobal)
-	int rad = 1; // Search boxes of increasing size
-	// Distance and coordinate of closest matching edge point
-	int mindist = INT_MAX;
-	int rmin = -1;
-	int cmin = -1;
-	// Search increasingly big boxes until we find a match or until we reach the image border
-	while(mindist == INT_MAX && rad<25) {
-		// Search the current box
-		for(int rr = max(0, rglobal-rad); rr <= min(edges.rows-1, rglobal+rad); ++rr) {
-			for(int cc = max(0, cglobal-rad); cc <= min(edges.cols-1, cglobal+rad); ++cc) {
-				if(edges.at<int16_t>(rr,cc) > 0) { // If current point is non-zero
-					const int dist = abs(rglobal-rr) + abs(cglobal-cc);
-					if(dist < mindist) {
-						mindist = dist;
-						rmin = rr;
-						cmin = cc;
-					}
-				}
-			}
-		}
-		// Expand the box
-		++rad;
-	}
-	// Save corresponding point
-	//dst.x=cmin;
-	//dst.y=rmin;
-	dst = cv::Point2f(cmin,rmin);
+pcl::visualization::PCLVisualizer *p;
+int vp_1;
+int vp_2;
+int vp_3;
 
-    return dst;
+using pcl::visualization::PointCloudColorHandlerGenericField;
+using pcl::visualization::PointCloudColorHandlerCustom;
+
+//convenient typedefs
+typedef pcl::PointXYZ PointT;
+typedef pcl::PointCloud<PointT> PointCloud;
+typedef pcl::PointNormal PointNormalT;
+typedef pcl::PointCloud<PointNormalT> PointCloudWithNormals;
+
+void showCloudsLeft(const PointCloud::Ptr cloud_target, const PointCloud::Ptr cloud_source, const PointCloud::Ptr cloud_source_2)
+{
+  p->removePointCloud ("vp1_target");
+  p->removePointCloud ("vp1_source");
+  p->removePointCloud ("vp1_source2");
+
+  PointCloudColorHandlerCustom<PointT> tgt_h (cloud_target, 0, 255, 0);
+  PointCloudColorHandlerCustom<PointT> src_h (cloud_source, 255, 0, 0);
+  PointCloudColorHandlerCustom<PointT> src2_h (cloud_source, 255, 0, 0);
+  p->addPointCloud (cloud_target, tgt_h, "vp1_target");
+  p->addPointCloud (cloud_source, src_h, "vp1_source");
+  p->addPointCloud (cloud_source_2, src_h, "vp1_source2");
+  p-> spin();
 }
 
 CV_IMPL CvStereoBMState* cvCreateStereoBMState( int /*preset*/, int numberOfDisparities )
@@ -456,7 +457,7 @@ findStereoCorrespondenceBM( const Mat& left, const Mat& right,
                 dptr[y*dstep] = FILTERED;
                 continue;
             }
-
+            /*
             if( uniquenessRatio > 0 )
             {
                 int thresh = minsad + (minsad * uniquenessRatio/100);
@@ -470,7 +471,7 @@ findStereoCorrespondenceBM( const Mat& left, const Mat& right,
                     dptr[y*dstep] = FILTERED;
                     continue;
                 }
-            }
+            }  */
 
             {
 

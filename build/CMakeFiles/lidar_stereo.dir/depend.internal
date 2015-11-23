@@ -241,6 +241,7 @@ CMakeFiles/lidar_stereo.dir/lidar_stereo.cpp.o
  /usr/include/pcl-1.7/pcl/common/centroid.h
  /usr/include/pcl-1.7/pcl/common/common.h
  /usr/include/pcl-1.7/pcl/common/concatenate.h
+ /usr/include/pcl-1.7/pcl/common/distances.h
  /usr/include/pcl-1.7/pcl/common/eigen.h
  /usr/include/pcl-1.7/pcl/common/impl/centroid.hpp
  /usr/include/pcl-1.7/pcl/common/impl/common.hpp
@@ -264,8 +265,10 @@ CMakeFiles/lidar_stereo.dir/lidar_stereo.cpp.o
  /usr/include/pcl-1.7/pcl/features/impl/normal_3d.hpp
  /usr/include/pcl-1.7/pcl/features/normal_3d.h
  /usr/include/pcl-1.7/pcl/filters/boost.h
+ /usr/include/pcl-1.7/pcl/filters/extract_indices.h
  /usr/include/pcl-1.7/pcl/filters/filter.h
  /usr/include/pcl-1.7/pcl/filters/filter_indices.h
+ /usr/include/pcl-1.7/pcl/filters/impl/extract_indices.hpp
  /usr/include/pcl-1.7/pcl/filters/impl/filter.hpp
  /usr/include/pcl-1.7/pcl/filters/impl/filter_indices.hpp
  /usr/include/pcl-1.7/pcl/filters/impl/passthrough.hpp
@@ -339,13 +342,53 @@ CMakeFiles/lidar_stereo.dir/lidar_stereo.cpp.o
  /usr/include/pcl-1.7/pcl/registration/warp_point_rigid_6d.h
  /usr/include/pcl-1.7/pcl/sample_consensus/boost.h
  /usr/include/pcl-1.7/pcl/sample_consensus/eigen.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/lmeds.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/mlesac.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/msac.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/prosac.hpp
  /usr/include/pcl-1.7/pcl/sample_consensus/impl/ransac.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/rmsac.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/rransac.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/sac_model_circle.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/sac_model_cone.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/sac_model_cylinder.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/sac_model_line.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/sac_model_normal_parallel_plane.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/sac_model_normal_plane.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/sac_model_normal_sphere.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/sac_model_parallel_line.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/sac_model_parallel_plane.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/sac_model_perpendicular_plane.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/sac_model_plane.hpp
  /usr/include/pcl-1.7/pcl/sample_consensus/impl/sac_model_registration.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/sac_model_sphere.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/impl/sac_model_stick.hpp
+ /usr/include/pcl-1.7/pcl/sample_consensus/lmeds.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/method_types.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/mlesac.h
  /usr/include/pcl-1.7/pcl/sample_consensus/model_types.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/msac.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/prosac.h
  /usr/include/pcl-1.7/pcl/sample_consensus/ransac.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/rmsac.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/rransac.h
  /usr/include/pcl-1.7/pcl/sample_consensus/sac.h
  /usr/include/pcl-1.7/pcl/sample_consensus/sac_model.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/sac_model_circle.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/sac_model_circle3d.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/sac_model_cone.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/sac_model_cylinder.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/sac_model_line.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/sac_model_normal_parallel_plane.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/sac_model_normal_plane.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/sac_model_normal_sphere.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/sac_model_parallel_line.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/sac_model_parallel_plane.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/sac_model_perpendicular_plane.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/sac_model_plane.h
  /usr/include/pcl-1.7/pcl/sample_consensus/sac_model_registration.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/sac_model_sphere.h
+ /usr/include/pcl-1.7/pcl/sample_consensus/sac_model_stick.h
  /usr/include/pcl-1.7/pcl/search/impl/organized.hpp
  /usr/include/pcl-1.7/pcl/search/impl/search.hpp
  /usr/include/pcl-1.7/pcl/search/kdtree.h
@@ -353,8 +396,13 @@ CMakeFiles/lidar_stereo.dir/lidar_stereo.cpp.o
  /usr/include/pcl-1.7/pcl/search/organized.h
  /usr/include/pcl-1.7/pcl/search/pcl_search.h
  /usr/include/pcl-1.7/pcl/search/search.h
+ /usr/include/pcl-1.7/pcl/segmentation/extract_clusters.h
+ /usr/include/pcl-1.7/pcl/segmentation/impl/extract_clusters.hpp
+ /usr/include/pcl-1.7/pcl/segmentation/impl/sac_segmentation.hpp
+ /usr/include/pcl-1.7/pcl/segmentation/sac_segmentation.h
  /usr/include/pcl-1.7/pcl/visualization/area_picking_event.h
  /usr/include/pcl-1.7/pcl/visualization/boost.h
+ /usr/include/pcl-1.7/pcl/visualization/cloud_viewer.h
  /usr/include/pcl-1.7/pcl/visualization/common/actor_map.h
  /usr/include/pcl-1.7/pcl/visualization/common/common.h
  /usr/include/pcl-1.7/pcl/visualization/common/impl/common.hpp
